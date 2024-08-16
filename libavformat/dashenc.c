@@ -204,6 +204,7 @@ typedef struct DASHContext {
     AVRational min_playback_rate;
     AVRational max_playback_rate;
     int64_t update_period;
+    int64_t start_time_ms;
 } DASHContext;
 
 static const struct codec_string {
@@ -2108,7 +2109,12 @@ static int dash_write_packet(AVFormatContext *s, AVPacket *pkt)
     os->last_pts = pkt->pts;
 
     if (!c->availability_start_time[0]) {
-        int64_t start_time_us = av_gettime();
+        int64_t start_time_us;
+        if (c->start_time_ms) {
+            start_time_us = c->start_time_ms * 1000;
+        } else {
+            start_time_us = av_gettime();
+        }
         c->start_time_s = start_time_us / 1000000;
         format_date(c->availability_start_time,
                     sizeof(c->availability_start_time), start_time_us);
@@ -2393,6 +2399,7 @@ static const AVOption options[] = {
     { "seg_duration", "segment duration (in seconds, fractional value can be set)", OFFSET(seg_duration), AV_OPT_TYPE_DURATION, { .i64 = 5000000 }, 0, INT_MAX, E },
     { "single_file", "Store all segments in one file, accessed using byte ranges", OFFSET(single_file), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, E },
     { "single_file_name", "DASH-templated name to be used for baseURL. Implies storing all segments in one file, accessed using byte ranges", OFFSET(single_file_name), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, E },
+    { "start_time_ms", "Stream start time in epoch milliseconds", OFFSET(start_time_ms), AV_OPT_TYPE_INT64, {.i64 = 0}, 0, UINT64_MAX, E, .unit = "ms"},
     { "streaming", "Enable/Disable streaming mode of output. Each frame will be moof fragment", OFFSET(streaming), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, E },
     { "target_latency", "Set desired target latency for Low-latency dash", OFFSET(target_latency), AV_OPT_TYPE_DURATION, { .i64 = 0 }, 0, INT_MAX, E },
     { "timeout", "set timeout for socket I/O operations", OFFSET(timeout), AV_OPT_TYPE_DURATION, { .i64 = -1 }, -1, INT_MAX, .flags = E },
