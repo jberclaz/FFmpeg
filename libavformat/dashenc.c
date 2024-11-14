@@ -205,6 +205,7 @@ typedef struct DASHContext {
     AVRational max_playback_rate;
     int64_t update_period;
     int64_t start_time_ms;
+    int64_t suggested_presentation_delay_s;
 } DASHContext;
 
 static const struct codec_string {
@@ -1176,8 +1177,13 @@ static int write_manifest(AVFormatContext *s, int final)
         if (c->update_period)
             update_period = c->update_period;
         avio_printf(out, "\tminimumUpdatePeriod=\"PT%"PRId64"S\"\n", update_period);
-        if (!c->ldash)
-            avio_printf(out, "\tsuggestedPresentationDelay=\"PT%"PRId64"S\"\n", c->last_duration / AV_TIME_BASE);
+        if (!c->ldash) {
+            int64_t presentation_delay_s = c->last_duration / AV_TIME_BASE;
+            if (c->suggested_presentation_delay_s > 0) {
+                presentation_delay_s = c->suggested_presentation_delay_s;
+            }
+            avio_printf(out, "\tsuggestedPresentationDelay=\"PT%"PRId64"S\"\n", presentation_delay_s);
+        }
         if (c->availability_start_time[0])
             avio_printf(out, "\tavailabilityStartTime=\"%s\"\n", c->availability_start_time);
         format_date(now_str, sizeof(now_str), av_gettime());
@@ -2401,6 +2407,7 @@ static const AVOption options[] = {
     { "single_file_name", "DASH-templated name to be used for baseURL. Implies storing all segments in one file, accessed using byte ranges", OFFSET(single_file_name), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, E },
     { "start_time_ms", "Stream start time in epoch milliseconds", OFFSET(start_time_ms), AV_OPT_TYPE_INT64, {.i64 = 0}, 0, UINT64_MAX, E, .unit = "ms"},
     { "streaming", "Enable/Disable streaming mode of output. Each frame will be moof fragment", OFFSET(streaming), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, E },
+    { "suggested_presentation_delay_s", "Suggested Presentation Delay in seconds", OFFSET(suggested_presentation_delay_s), AV_OPT_TYPE_INT64, {.i64 = 0}, 0, UINT64_MAX, E, .unit = "s"},
     { "target_latency", "Set desired target latency for Low-latency dash", OFFSET(target_latency), AV_OPT_TYPE_DURATION, { .i64 = 0 }, 0, INT_MAX, E },
     { "timeout", "set timeout for socket I/O operations", OFFSET(timeout), AV_OPT_TYPE_DURATION, { .i64 = -1 }, -1, INT_MAX, .flags = E },
     { "update_period", "Set the mpd update interval", OFFSET(update_period), AV_OPT_TYPE_INT64, {.i64 = 0}, 0, INT64_MAX, E},
